@@ -19,9 +19,7 @@ export const NewFolder = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Add your API call here
         console.log('Form submitted:', formData);
-        navigate('/panel/folders');
     };
 
     const handleCancel = () => {
