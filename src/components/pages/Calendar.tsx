@@ -84,8 +84,8 @@ function Calendar() {
 
   const saveEvent = (eventData: Omit<CalendarEvent, 'id'>) => {
     if (editingEvent) {
-      setEvents(prev => prev.map(event => 
-        event.id === editingEvent.id 
+      setEvents(prev => prev.map(event =>
+        event.id === editingEvent.id
           ? { ...eventData, id: editingEvent.id }
           : event
       ));
@@ -121,7 +121,7 @@ function Calendar() {
   const getCategoryColor = (category: string) => {
     const colors = {
       work: 'bg-blue-500',
-      personal: 'bg-green-500', 
+      personal: 'bg-green-500',
       meeting: 'bg-purple-500',
       other: 'bg-gray-500'
     };
@@ -150,19 +150,18 @@ function Calendar() {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = formatDate(currentYear, currentMonth, day);
       const dayEvents = getEventsForDate(dateStr);
-      const isToday = today.getDate() === day && 
-                     today.getMonth() === currentMonth && 
-                     today.getFullYear() === currentYear;
-      const isWeekend = new Date(currentYear, currentMonth, day).getDay() === 0 || 
-                       new Date(currentYear, currentMonth, day).getDay() === 6;
+      const isToday = today.getDate() === day &&
+        today.getMonth() === currentMonth &&
+        today.getFullYear() === currentYear;
+      const isWeekend = new Date(currentYear, currentMonth, day).getDay() === 0 ||
+        new Date(currentYear, currentMonth, day).getDay() === 6;
 
       days.push(
-        <div 
+        <div
           key={day}
           onClick={() => handleDateClick(day)}
-          className={`h-24 md:h-32 border border-gray-200 p-1 cursor-pointer hover:bg-gray-50 transition-colors ${
-            isToday ? 'bg-blue-50 ring-2 ring-blue-500' : isWeekend ? 'bg-gray-50' : 'bg-white'
-          }`}
+          className={`h-24 md:h-32 border border-gray-200 p-1 cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-blue-50 ring-2 ring-blue-500' : isWeekend ? 'bg-gray-50' : 'bg-white'
+            }`}
         >
           <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
             {day}
@@ -172,9 +171,8 @@ function Calendar() {
               <div
                 key={event.id}
                 onClick={(e) => handleEventClick(event, e)}
-                className={`text-xs px-1 py-0.5 rounded text-white truncate ${getCategoryColor(event.category)} hover:opacity-80 ${
-                  isMultiDayEvent(event) ? 'border-l-2 border-white' : ''
-                }`}
+                className={`text-xs px-1 py-0.5 rounded text-white truncate ${getCategoryColor(event.category)} hover:opacity-80 ${isMultiDayEvent(event) ? 'border-l-2 border-white' : ''
+                  }`}
                 title={isMultiDayEvent(event) ? `${event.startDate} - ${event.endDate}` : event.title}
               >
                 {event.time && <span className="mr-1">{event.time}</span>}
@@ -268,7 +266,7 @@ function Calendar() {
             Hoy
           </button>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           {/* View Toggle */}
           <div className="flex bg-gray-200 rounded-lg p-1">
@@ -276,17 +274,16 @@ function Calendar() {
               <button
                 key={viewType}
                 onClick={() => setView(viewType)}
-                className={`px-3 py-1 text-sm rounded ${
-                  view === viewType 
-                    ? 'bg-white text-gray-900 shadow' 
+                className={`px-3 py-1 text-sm rounded ${view === viewType
+                    ? 'bg-white text-gray-900 shadow'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 {viewType === 'month' ? 'Mes' : 'Lista'}
               </button>
             ))}
           </div>
-          
+
           {/* Export Button */}
           <button
             onClick={exportCalendar}
@@ -413,7 +410,7 @@ function EventModal({ isOpen, onClose, onSave, onDelete, event, selectedDate }: 
           <h2 className="text-lg font-semibold mb-4">
             {event ? 'Editar Evento' : 'Nuevo Evento'}
           </h2>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
