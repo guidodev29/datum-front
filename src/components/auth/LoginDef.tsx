@@ -1,4 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import logoDatum from '/src/assets/images/logo_datum.png'
+import { Settings } from 'lucide-react';
+
 
 export const LoginDef = () => {
 
@@ -9,10 +12,25 @@ export const LoginDef = () => {
         navigate('/terms-conditions');
     };
 
+    const goToAdmin = () => {
+        navigate('/admin-login');
+    };
+
+
     return (
         <div className="bg-[linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)),url('/src/assets/images/bg-datum.jpg')] bg-cover bg-center bg-no-repeat h-screen w-screen fixed top-0 left-0 flex items-center justify-center p-4">
+
+            <button
+                onClick={goToAdmin}
+                title="Panel de Control"
+                className="absolute top-4 right-4 flex items-center gap-2 bg-black/40 hover:bg-black/60 text-white border border-white/20 px-3 py-2 rounded-lg shadow-md transition-all"
+            >
+                <Settings className="w-5 h-5" />
+                <span className="text-sm font-medium">Panel</span>
+            </button>
+
             <div className="max-w-md w-full bg-black/30 backdrop-blur-lg rounded-xl shadow-xl p-8 border border-white/20">
-                <img src="/src/assets/images/logo_datum.png" />
+                <img src={logoDatum} />
                 <form className="space-y-5" onSubmit={handleLoginDef}>
 
                     <div>
