@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import logoDatum from '/src/assets/images/logo_datum.png'
 
 
 export const TermsConditions = () => {
@@ -34,7 +35,7 @@ export const TermsConditions = () => {
     <div className="bg-[linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)),url('/src/assets/images/bg-datum.jpg')] bg-cover bg-center bg-no-repeat h-screen w-screen fixed top-0 left-0 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-black/30 backdrop-blur-lg rounded-xl shadow-xl p-8 border border-white/20">
         <div className="flex justify-center mb-6">
-          <img src="/src/assets/images/logo_datum.png" alt="DATUM Logo" className="h-24 w-auto" />
+          <img src={logoDatum} alt="DATUM Logo" className="h-24 w-auto" />
         </div>
 
         <div className="space-y-6">
