@@ -5,12 +5,13 @@ export default function NewPurchaseForm() {
     // Router hooks
     const navigate = useNavigate();
     const { folderId } = useParams<{ folderId: string }>();
-    
+
     // Refs with proper TypeScript types
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     // Form state
     const [formData, setFormData] = useState({
         description: '',
@@ -20,7 +21,9 @@ export default function NewPurchaseForm() {
         paymentMethod: '',
         costCenter: '',
         guestName: '',
-        receipt: null as string | null
+        selectedCard: '',
+        receipt: null as string | null,
+        applyCostCenter: false
     });
 
     // Camera state
@@ -30,6 +33,17 @@ export default function NewPurchaseForm() {
         showPreview: false,
         isVideoReady: false
     });
+
+    // After line 32 - Add this new state
+    const [cards, setCards] = useState<any[]>([]);
+
+    // Load cards from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem('paymentMethods');
+        if (stored) {
+            setCards(JSON.parse(stored));
+        }
+    }, []);
 
     // Cleanup camera stream on unmount
     useEffect(() => {
@@ -60,20 +74,20 @@ export default function NewPurchaseForm() {
         try {
             // Show modal immediately
             setCameraState(prev => ({ ...prev, isOpen: true, isVideoReady: false }));
-            
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
                     facingMode: 'environment',
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
-                } 
+                }
             });
-            
+
             streamRef.current = stream;
-            
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                
+
                 // Wait for video to be ready
                 videoRef.current.onloadedmetadata = () => {
                     videoRef.current?.play();
@@ -103,22 +117,22 @@ export default function NewPurchaseForm() {
     const capturePhoto = () => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        
+
         if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
+
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 ctx.drawImage(video, 0, 0);
             }
-            
+
             const imageData = compressImage(canvas, 0.7);
-            
+
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
-            
+
             setCameraState(prev => ({
                 ...prev,
                 capturedImage: imageData,
@@ -151,9 +165,45 @@ export default function NewPurchaseForm() {
         setFormData(prev => ({ ...prev, receipt: null }));
     };
 
+    // Handle file upload
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'application/json'];
+        if (!validTypes.includes(file.type)) {
+            alert('Formato no válido. Solo se aceptan imágenes (JPG, PNG), PDF o JSON');
+            return;
+        }
+
+        // Validate file size (5MB max)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert('El archivo es muy grande. Tamaño máximo: 5MB');
+            return;
+        }
+
+        // Read file and convert to base64
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const result = event.target?.result as string;
+            setFormData(prev => ({
+                ...prev,
+                receipt: result
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Trigger file input
+    const triggerFileUpload = () => {
+        fileInputRef.current?.click();
+    };
+
     // Submit form
     const handleSubmit = () => {
-        if (!formData.description || !formData.total || !formData.date || 
+        if (!formData.description || !formData.total || !formData.date ||
             !formData.expenseType || !formData.paymentMethod || !formData.costCenter) {
             alert('Por favor completa todos los campos obligatorios');
             return;
@@ -161,6 +211,16 @@ export default function NewPurchaseForm() {
 
         if (formData.expenseType === 'representacion' && !formData.guestName) {
             alert('El nombre del invitado/cliente es obligatorio para gastos de representación');
+            return;
+        }
+
+        if (formData.paymentMethod === 'tarjeta-corporativa' && !formData.selectedCard) {
+            alert('Por favor selecciona una tarjeta corporativa');
+            return;
+        }
+
+        if (formData.applyCostCenter && !formData.costCenter) {
+            alert('Por favor ingresa el centro de costo');
             return;
         }
 
@@ -179,7 +239,7 @@ export default function NewPurchaseForm() {
             };
             purchases.push(newPurchase);
             localStorage.setItem('purchases', JSON.stringify(purchases));
-            
+
             alert('✅ Compra registrada correctamente');
             navigate(`/panel/folders/${folderId}`);
         } catch (error) {
@@ -201,14 +261,14 @@ export default function NewPurchaseForm() {
             {cameraState.isOpen && (
                 <div className="fixed inset-0 bg-black z-50 flex flex-col">
                     <div className="flex-1 relative">
-                        <video 
-                            ref={videoRef} 
-                            autoPlay 
+                        <video
+                            ref={videoRef}
+                            autoPlay
                             playsInline
                             className="w-full h-full object-cover"
                         />
                         <canvas ref={canvasRef} className="hidden" />
-                        
+
                         {/* Loading indicator */}
                         {!cameraState.isVideoReady && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
@@ -229,11 +289,10 @@ export default function NewPurchaseForm() {
                         <button
                             onClick={capturePhoto}
                             disabled={!cameraState.isVideoReady}
-                            className={`flex items-center justify-center w-16 h-16 rounded-full font-medium transition-colors shadow-lg ${
-                                cameraState.isVideoReady 
-                                    ? 'bg-white hover:bg-gray-100 cursor-pointer' 
-                                    : 'bg-gray-600 cursor-not-allowed opacity-50'
-                            }`}
+                            className={`flex items-center justify-center w-16 h-16 rounded-full font-medium transition-colors shadow-lg ${cameraState.isVideoReady
+                                ? 'bg-white hover:bg-gray-100 cursor-pointer'
+                                : 'bg-gray-600 cursor-not-allowed opacity-50'
+                                }`}
                         >
                             <div className="w-14 h-14 bg-red-600 rounded-full"></div>
                         </button>
@@ -245,9 +304,9 @@ export default function NewPurchaseForm() {
             {cameraState.showPreview && (
                 <div className="fixed inset-0 bg-black z-50 flex flex-col">
                     <div className="flex-1 relative overflow-auto">
-                        <img 
-                            src={cameraState.capturedImage || ''} 
-                            alt="Preview" 
+                        <img
+                            src={cameraState.capturedImage || ''}
+                            alt="Preview"
                             className="w-full h-full object-contain"
                         />
                     </div>
@@ -354,6 +413,7 @@ export default function NewPurchaseForm() {
 
                     {/* Payment Method and Cost Center */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Payment Method Column */}
                         <div>
                             <label htmlFor="paymentMethod" className="block text-sm font-medium text-slate-800 mb-2">
                                 Método de pago <span className="text-red-600">*</span>
@@ -366,16 +426,73 @@ export default function NewPurchaseForm() {
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors bg-white"
                             >
                                 <option value="">Selecciona método</option>
-                                <option value="efectivo">Efectivo</option>
-                                <option value="tarjeta">Tarjeta de Crédito</option>
-                                <option value="debito">Tarjeta de Débito</option>
-                                <option value="transferencia">Transferencia</option>
+                                <option value="anticipo-efectivo">Anticipo en Efectivo</option>
+                                <option value="transferencia-personal">Transferencia a cuenta personal</option>
+                                <option value="tarjeta-corporativa">Tarjeta Corporativa</option>
                             </select>
+
+                            {/* Card Selection - Only show if Tarjeta Corporativa is selected */}
+                            {formData.paymentMethod === 'tarjeta-corporativa' && (
+                                <div className="mt-4">
+                                    <label htmlFor="selectedCard" className="block text-sm font-medium text-slate-800 mb-2">
+                                        Seleccionar Tarjeta <span className="text-red-600">*</span>
+                                    </label>
+                                    <select
+                                        id="selectedCard"
+                                        name="selectedCard"
+                                        value={formData.selectedCard}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors bg-white"
+                                    >
+                                        <option value="">Selecciona una tarjeta</option>
+                                        {cards.map((card) => (
+                                            <option key={card.id} value={card.id}>
+                                                {card.name} - •••• {card.lastFourDigits}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {cards.length === 0 && (
+                                        <p className="text-xs text-red-600 mt-1">
+                                            No hay tarjetas registradas.
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/panel/payments-methods/new-card')}
+                                                className="underline ml-1 hover:text-red-700"
+                                            >
+                                                Registrar una tarjeta
+                                            </button>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
+                        {/* Cost Center Column */}
                         <div>
+                            {/* Checkbox for Cost Center */}
+                            <div className="mb-3">
+                                <label className="flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="applyCostCenter"
+                                        checked={formData.applyCostCenter}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            applyCostCenter: e.target.checked,
+                                            costCenter: e.target.checked ? prev.costCenter : ''
+                                        }))}
+                                        className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                    />
+                                    <span className="ml-2 text-sm font-medium text-slate-800">
+                                        Aplicable a centro de costos
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* Cost Center Input */}
                             <label htmlFor="costCenter" className="block text-sm font-medium text-slate-800 mb-2">
-                                Centro de costo <span className="text-red-600">*</span>
+                                Centro de costo
+                                {formData.applyCostCenter && <span className="text-red-600"> *</span>}
                             </label>
                             <input
                                 type="text"
@@ -383,9 +500,16 @@ export default function NewPurchaseForm() {
                                 name="costCenter"
                                 value={formData.costCenter}
                                 onChange={handleChange}
-                                placeholder="Ej: Marketing"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                                disabled={!formData.applyCostCenter}
+                                placeholder={formData.applyCostCenter ? "Ej: Marketing" : "Marcar checkbox para habilitar"}
+                                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${!formData.applyCostCenter ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                    }`}
                             />
+                            {!formData.applyCostCenter && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Marca el checkbox si este gasto aplica a un centro de costos específico
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -403,9 +527,8 @@ export default function NewPurchaseForm() {
                             onChange={handleChange}
                             disabled={!isGuestFieldEnabled}
                             placeholder={isGuestFieldEnabled ? "Nombre del invitado o cliente" : "Solo para gastos de representación"}
-                            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
-                                !isGuestFieldEnabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
-                            }`}
+                            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${!isGuestFieldEnabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                }`}
                         />
                         {!isGuestFieldEnabled && (
                             <p className="text-xs text-gray-500 mt-1">
@@ -419,33 +542,83 @@ export default function NewPurchaseForm() {
                         <label className="block text-sm font-medium text-slate-800 mb-3">
                             Recibo o Comprobante <span className="text-red-600">*</span>
                         </label>
-                        
+
                         {!formData.receipt ? (
                             <div>
-                                <button
-                                    type="button"
-                                    onClick={openCamera}
-                                    className="inline-flex items-center px-6 py-3 border-2 border-red-600 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
-                                >
-                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    Tomar Fotografía
-                                </button>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Captura una foto del recibo o factura para adjuntarla al gasto
+                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                    {/* Camera Button */}
+                                    <button
+                                        type="button"
+                                        onClick={openCamera}
+                                        className="inline-flex items-center justify-center px-6 py-3 border-2 border-red-600 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Tomar Fotografía
+                                    </button>
+
+                                    {/* Upload File Button - NUEVO */}
+                                    <button
+                                        type="button"
+                                        onClick={triggerFileUpload}
+                                        className="inline-flex items-center justify-center px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        Subir Archivo
+                                    </button>
+
+                                    {/* Hidden File Input - NUEVO */}
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*,.pdf,.json"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                    Toma una foto o sube un archivo (JPG, PNG, PDF, JSON) del recibo
                                 </p>
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 <div className="relative border-2 border-green-500 rounded-lg overflow-hidden">
-                                    <img 
-                                        src={formData.receipt} 
-                                        alt="Recibo capturado" 
-                                        className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(formData.receipt || '', '_blank')}
-                                    />
+                                    {formData.receipt.startsWith('data:image') ? (
+                                        <img
+                                            src={formData.receipt}
+                                            alt="Recibo capturado"
+                                            className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(formData.receipt || '', '_blank')}
+                                        />
+                                    ) : formData.receipt.startsWith('data:application/pdf') ? (
+                                        <div className="w-full h-48 flex items-center justify-center bg-gray-100">
+                                            <div className="text-center">
+                                                <svg className="w-16 h-16 mx-auto text-red-600 mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                                </svg>
+                                                <p className="text-sm font-medium text-gray-700">Archivo PDF adjuntado</p>
+                                                <button
+                                                    onClick={() => window.open(formData.receipt || '', '_blank')}
+                                                    className="text-xs text-blue-600 hover:underline mt-1"
+                                                >
+                                                    Ver archivo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-48 flex items-center justify-center bg-gray-100">
+                                            <div className="text-center">
+                                                <svg className="w-16 h-16 mx-auto text-blue-600 mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                                </svg>
+                                                <p className="text-sm font-medium text-gray-700">Archivo adjuntado</p>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="absolute top-2 right-2">
                                         <button
                                             type="button"
@@ -462,7 +635,7 @@ export default function NewPurchaseForm() {
                                     <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                     </svg>
-                                    Foto del recibo adjuntada correctamente
+                                    Archivo adjuntado correctamente
                                 </div>
                             </div>
                         )}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import logoDatum from '/src/assets/images/logo_datum.png'
 
 export const Login = () => {
     const navigate = useNavigate();
@@ -48,7 +49,7 @@ export const Login = () => {
             <div className="max-w-md w-full bg-black/30 backdrop-blur-lg rounded-xl shadow-xl p-8 border border-white/20">
                 {/* Logo */}
                 <div className="flex justify-center mb-6">
-                    <img src="/src/assets/images/logo_datum.png" alt="Datum Logo" className="h-16" />
+                    <img src={logoDatum} alt="Datum Logo" className="h-16" />
                 </div>
 
                 {/* Title and Instructions */}
