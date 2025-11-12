@@ -17,7 +17,7 @@ function Header() {
           <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-semibold">
             U
           </div>
-          <span className="hidden sm:inline text-slate-800 font-semibold">Hola User</span>
+          <span className="hidden sm:inline text-slate-800 font-semibold">Buenos Días</span>
         </div>
       </div>
     </div>

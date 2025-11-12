@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoDatum from '/src/assets/images/logo_datum.png'
-
+import { useAuth } from '../../hooks/useAuth'; // Adjust path if needed
+import logoDatum from '/src/assets/images/logo_datum.png';
 
 export const TermsConditions = () => {
   const [isAccepted, setIsAccepted] = useState(false);
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+
+  // Redirect if not authenticated (protection)
+  if (!isAuthenticated) {
+    navigate('/login-default');
+    return null;
+  }
 
   const termsItems = [
     "1. Uso de Datos y Privacidad",
@@ -26,9 +33,10 @@ export const TermsConditions = () => {
     "5.2. El usuario acepta expresamente que el uso del sistema se realiza bajo su exclusiva responsabilidad y riesgo."
   ];
 
-  const handleTerms = (e: { preventDefault: () => void; }) => {
+  const handleTerms = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/login');
+    // Navigate to change password page
+    navigate('/change-password');
   };
 
   return (
@@ -73,15 +81,25 @@ export const TermsConditions = () => {
           <button
             onClick={handleTerms}
             disabled={!isAccepted}
-            className={`w-full font-semibold py-3 rounded-lg transition-all ${isAccepted
+            className={`w-full font-semibold py-3 rounded-lg transition-all ${
+              isAccepted
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }`}
+            }`}
           >
             Continuar
           </button>
+
+          {/* User Info */}
+          {user && (
+            <div className="text-center">
+              <p className="text-white/60 text-xs">
+                Sesión iniciada como: {user.email}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-}
+};

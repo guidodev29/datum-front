@@ -1,59 +1,69 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Settings } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth'; // Adjust path if needed
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import logoDatum from '/src/assets/images/logo_datum.png';
 
-export const LoginDef = () => {
+export const RegularLogin = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login, isLoading } = useAuth();
 
-    // State for form inputs
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
-    const handleLoginDef = async (e: React.FormEvent) => {
+    // Check if there's a success message from password change
+    useEffect(() => {
+        if (location.state?.message) {
+            setSuccessMessage(location.state.message);
+            // Clear the message after 5 seconds
+            setTimeout(() => setSuccessMessage(''), 5000);
+        }
+    }, [location]);
+
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(''); // Clear previous errors
+        setError('');
+        setSuccessMessage('');
 
         try {
-            // Call the login API
-            await login({ username: email, password });
+            // Backend expects 'username' but we're collecting 'email' from user
+            await login({
+                username: email,  // Map email to username
+                password
+            });
 
-            // Success! Navigate to terms and conditions
-            navigate('/terms-conditions');
+            // Success! Navigate to dashboard
+            navigate('/panel');
         } catch (err: any) {
-            // Handle login errors
-            const errorMessage = err.response?.data?.error ||
-                err.response?.data?.message ||
+            const errorMessage = err.response?.data?.message ||
+                err.response?.data?.error ||
                 'Error al iniciar sesión. Verifica tus credenciales.';
             setError(errorMessage);
             console.error('Login error:', err);
         }
     };
 
-    const goToAdmin = () => {
-        navigate('/admin-login');
-    };
-
     return (
         <div className="bg-[linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)),url('/src/assets/images/bg-datum.jpg')] bg-cover bg-center bg-no-repeat h-screen w-screen fixed top-0 left-0 flex items-center justify-center p-4">
 
-            <button
-                onClick={goToAdmin}
-                title="Panel de Control"
-                className="absolute top-4 right-4 flex items-center gap-2 bg-black/40 hover:bg-black/60 text-white border border-white/20 px-3 py-2 rounded-lg shadow-md transition-all"
-            >
-                <Settings className="w-5 h-5" />
-                <span className="text-sm font-medium">Panel</span>
-            </button>
-
             <div className="max-w-md w-full bg-black/30 backdrop-blur-lg rounded-xl shadow-xl p-8 border border-white/20">
-                <img src={logoDatum} alt="Datum Logo" />
+                <img src={logoDatum} alt="Datum Logo" className="mb-6" />
 
-                <form className="space-y-5" onSubmit={handleLoginDef}>
-                    {/* Error Message Display */}
+                <h2 className="text-white text-2xl font-bold text-center mb-6">
+                    Iniciar Sesión
+                </h2>
+
+                <form className="space-y-5" onSubmit={handleLogin}>
+                    {/* Success Message (from password change) */}
+                    {successMessage && (
+                        <div className="bg-green-500/20 border border-green-500/50 text-white px-4 py-3 rounded-lg">
+                            {successMessage}
+                        </div>
+                    )}
+
+                    {/* Error Message */}
                     {error && (
                         <div className="bg-red-500/20 border border-red-500/50 text-white px-4 py-3 rounded-lg">
                             {error}

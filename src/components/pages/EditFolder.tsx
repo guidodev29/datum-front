@@ -1,10 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { folderApi } from '../../services/api/folderApi';
+import type { Folder } from '../../services/types/api.types';
 
-export const NewFolder = () => {
+export const EditFolder = () => {
     const navigate = useNavigate();
+    const { folderId } = useParams<{ folderId: string }>();
+    
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
     
     const [formData, setFormData] = useState({
         folderName: '',
@@ -12,6 +17,32 @@ export const NewFolder = () => {
         startDate: '',
         endDate: ''
     });
+
+    // Load folder data
+    useEffect(() => {
+        const loadFolder = async () => {
+            if (!folderId) return;
+
+            try {
+                setIsLoading(true);
+                const folder = await folderApi.getFolder(81, parseInt(folderId));
+                
+                setFormData({
+                    folderName: folder.folderName,
+                    description: folder.description,
+                    startDate: folder.startDate,
+                    endDate: folder.endDate
+                });
+            } catch (err) {
+                console.error('Error loading folder:', err);
+                setError('Error al cargar la carpeta');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadFolder();
+    }, [folderId]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData({
@@ -23,15 +54,17 @@ export const NewFolder = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        if (!folderId) return;
+
         try {
             setIsSaving(true);
-            await folderApi.createFolder(81, formData);
+            await folderApi.updateFolder(81, parseInt(folderId), formData);
             
-            alert('Carpeta creada exitosamente');
+            alert('Carpeta actualizada exitosamente');
             navigate('/panel/welcome');
         } catch (err) {
-            console.error('Error creating folder:', err);
-            alert('Error al crear la carpeta');
+            console.error('Error updating folder:', err);
+            alert('Error al actualizar la carpeta');
         } finally {
             setIsSaving(false);
         }
@@ -40,6 +73,35 @@ export const NewFolder = () => {
     const handleCancel = () => {
         navigate('/panel/welcome');
     };
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Cargando carpeta...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <p className="text-red-600 text-xl mb-4">{error}</p>
+                    <button 
+                        onClick={() => navigate('/panel/welcome')} 
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg"
+                    >
+                        Volver
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -54,8 +116,8 @@ export const NewFolder = () => {
                     </svg>
                     Volver
                 </button>
-                <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Nueva Carpeta</h1>
-                <p className="text-gray-600 mt-2">Crea una carpeta para organizar los gastos de tu evento o proyecto</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Editar Carpeta</h1>
+                <p className="text-gray-600 mt-2">Modifica la información de tu carpeta</p>
             </div>
 
             {/* Form Card */}
@@ -93,7 +155,6 @@ export const NewFolder = () => {
                             placeholder="Describe el propósito de esta carpeta..."
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors resize-none"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Incluye detalles relevantes sobre el evento o proyecto</p>
                     </div>
 
                     {/* Date Range */}
@@ -132,21 +193,6 @@ export const NewFolder = () => {
                         </div>
                     </div>
 
-                    {/* Info Box */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                            <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                            <div className="flex-1">
-                                <p className="text-sm text-blue-900 font-medium">Consejo</p>
-                                <p className="text-sm text-blue-800 mt-1">
-                                    Una vez creada la carpeta, podrás agregar gastos individuales como recibos, facturas y compras relacionadas al evento.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Action Buttons */}
                     <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                         <button
@@ -165,10 +211,10 @@ export const NewFolder = () => {
                             {isSaving ? (
                                 <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Creando...
+                                    Guardando...
                                 </>
                             ) : (
-                                'Crear Carpeta'
+                                'Guardar Cambios'
                             )}
                         </button>
                     </div>
