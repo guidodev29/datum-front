@@ -1,30 +1,113 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { folderApi } from '../../services/api/folderApi';
+import { type Folder } from '../../services/types/api.types';
 
 export const Welcome = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
-    const folders = [
-        { id: 1, name: 'Viaje a Guatemala', amount: 1250.00, status: 'draft', date: '15 Oct 2024' },
-        { id: 2, name: 'Conferencia Tech', amount: 850.50, status: 'approved', date: '12 Oct 2024' },
-        { id: 3, name: 'Comida con cliente', amount: 125.00, status: 'submitted', date: '10 Oct 2024' },
-        { id: 4, name: 'Viaje San Miguel', amount: 320.00, status: 'draft', date: '08 Oct 2024' }
-    ];
+    // State management
+    const [folders, setFolders] = useState<Folder[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Fetch folders from API
+    useEffect(() => {
+        const fetchFolders = async () => {
+            if (!user) return;
+
+            try {
+                setIsLoading(true);
+                setError('');
+
+                const userId = 81;
+
+                //const userId = parseInt(user.id);
+                const data = await folderApi.getAllFolders(userId);
+
+                setFolders(data);
+            } catch (err: any) {
+                console.error('Error fetching folders:', err);
+                setError('Error al cargar las carpetas');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchFolders();
+    }, [user]);
 
     const getStatusBadge = (status: string) => {
         const badges = {
-            draft: { text: 'Borrador', color: 'bg-gray-100 text-gray-700', iconColor: 'text-gray-400' },
-            submitted: { text: 'En Revisión', color: 'bg-blue-100 text-blue-700', iconColor: 'text-blue-500' },
-            approved: { text: 'Aprobado', color: 'bg-green-100 text-green-700', iconColor: 'text-green-500' }
+            DRAFT: { text: 'Borrador', color: 'bg-gray-100 text-gray-700', iconColor: 'text-gray-400' },
+            PENDING: { text: 'En Revisión', color: 'bg-blue-100 text-blue-700', iconColor: 'text-blue-500' },
+            APPROVED: { text: 'Aprobado', color: 'bg-green-100 text-green-700', iconColor: 'text-green-500' },
+            REJECTED: { text: 'Rechazado', color: 'bg-red-100 text-red-700', iconColor: 'text-red-500' }
         };
-        return badges[status as keyof typeof badges] || badges.draft;
+        return badges[status as keyof typeof badges] || badges.DRAFT;
     };
 
     const newFolder = () => {
         navigate('/panel/new-folder');
     };
 
+    const handleDeleteFolder = async (folderId: number) => {
+        // Confirmation dialog
+        const confirmed = window.confirm(
+            '¿Está seguro de eliminar esta carpeta?\n\nSe perderá toda la información que la carpeta pueda contener.'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setIsLoading(true);
+            await folderApi.deleteFolder(81, folderId);
+
+            // Remove from state
+            setFolders(folders.filter(f => f.id !== folderId));
+
+            alert('Carpeta eliminada exitosamente');
+        } catch (error) {
+            console.error('Error deleting folder:', error);
+            alert('Error al eliminar la carpeta');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Calculate total
-    const totalAmount = folders.reduce((sum, folder) => sum + folder.amount, 0);
+    const totalAmount = 2945.50; // TODO: Calculate from purchases
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Cargando carpetas...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="text-center">
+                    <p className="text-red-600 text-xl mb-4">{error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg"
+                    >
+                        Reintentar
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4 sm:space-y-6">
@@ -98,48 +181,98 @@ export const Welcome = () => {
 
                 {/* Folders list - Column layout for mobile */}
                 <div className="space-y-3 mt-4">
-                    {folders.map((folder) => {
-                        const badge = getStatusBadge(folder.status);
-                        return (
-                            <Link
-                                key={folder.id}
-                                to={`/panel/folders/${folder.id}`}
-                                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 rounded-xl hover:border-red-300 hover:shadow-md transition-all duration-200 group bg-white space-y-3 sm:space-y-0"
-                            >
-                                <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
-                                    {/* Icon with status-based color */}
-                                    <div className={`w-10 h-10 sm:w-12 sm:h-12 ${folder.status === 'approved' ? 'bg-green-50' : folder.status === 'submitted' ? 'bg-blue-50' : 'bg-gray-50'} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
-                                        <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${badge.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                        </svg>
-                                    </div>
+                    {folders.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                </svg>
+                            </div>
+                            <p className="text-lg text-gray-600 mb-2">No tienes carpetas aún</p>
+                            <p className="text-sm text-gray-500">Crea tu primera carpeta para comenzar</p>
+                        </div>
+                    ) : (
+                        folders.map((folder) => {
+                            const badge = getStatusBadge(folder.validationStatus);
+                            return (
+                                <div
+                                    key={folder.id}
+                                    onClick={() => navigate(`/panel/folders/${folder.id}`)}
+                                    className="flex flex-col p-3 sm:p-4 border border-gray-200 rounded-xl hover:border-red-300 hover:shadow-md transition-all duration-200 group bg-white space-y-3 cursor-pointer"
+                                >
+                                    {/* Main Content Row */}
+                                    <div className="flex items-start sm:items-center space-x-3 flex-1">
+                                        {/* Icon with status-based color */}
+                                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${folder.validationStatus === 'APPROVED' ? 'bg-green-50' : folder.validationStatus === 'PENDING' ? 'bg-blue-50' : 'bg-gray-50'} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+                                            <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${badge.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                            </svg>
+                                        </div>
 
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-red-600 line-clamp-1 sm:line-clamp-2 transition-colors">
-                                            {folder.name}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.color} whitespace-nowrap`}>
-                                                {badge.text}
-                                            </span>
-                                            <span className="text-xs text-gray-500 font-medium">{folder.date}</span>
+                                        {/* Folder Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-red-600 line-clamp-1 sm:line-clamp-2 transition-colors">
+                                                {folder.folderName}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                                {folder.description}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.color} whitespace-nowrap`}>
+                                                    {badge.text}
+                                                </span>
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                    {new Date(folder.startDate).toLocaleDateString('es-ES', {
+                                                        day: 'numeric',
+                                                        month: 'short',
+                                                        year: 'numeric'
+                                                    })}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Amount */}
+                                        <div className="text-right">
+                                            <p className="text-base sm:text-lg font-bold text-slate-800">
+                                                ${(Math.random() * 1000).toFixed(2)}
+                                            </p>
+                                            <span className="text-xs text-gray-500">Total</span>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Amount row - separate line on mobile */}
-                                <div className="flex items-center justify-between sm:justify-end sm:ml-4 pl-13 sm:pl-0 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
-                                    <span className="text-xs text-gray-600 sm:hidden">Total:</span>
-                                    <div className="flex items-center space-x-2">
-                                        <p className="text-base sm:text-lg font-bold text-slate-800">${folder.amount.toFixed(2)}</p>
-                                        <svg className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
+                                    {/* Action Buttons Row */}
+                                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/panel/folders/${folder.id}/edit`);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                            title="Editar carpeta"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            Editar
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteFolder(folder.id);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                            title="Eliminar carpeta"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            Eliminar
+                                        </button>
                                     </div>
                                 </div>
-                            </Link>
-                        );
-                    })}
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Helper text at bottom - hidden on small mobile */}
@@ -155,7 +288,6 @@ export const Welcome = () => {
 
             {/* Help Section - MOBILE OPTIMIZED */}
             <div className="relative rounded-xl overflow-hidden shadow-sm h-44 sm:h-52">
-                {/* Background Image with lighter overlay on mobile */}
                 <div className="absolute inset-0">
                     <img
                         src="https://images.pexels.com/photos/4968390/pexels-photo-4968390.jpeg"

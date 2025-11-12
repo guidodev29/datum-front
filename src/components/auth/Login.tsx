@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoDatum from '/src/assets/images/logo_datum.png'
+import { useAuth } from '../../hooks/useAuth';
+import logoDatum from '/src/assets/images/logo_datum.png';
 
 export const Login = () => {
     const navigate = useNavigate();
+    const { changePassword, logout, user } = useAuth();
+
     const [formData, setFormData] = useState({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -19,9 +23,10 @@ export const Login = () => {
         setError(''); // Clear error when user types
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+        setError('');
+
         // Validation
         if (formData.newPassword !== formData.confirmPassword) {
             setError('Las contraseñas no coinciden');
@@ -38,10 +43,35 @@ export const Login = () => {
             return;
         }
 
-        // TODO: Send to backend
-        console.log('Password change:', formData);
-        alert('Contraseña cambiada exitosamente');
-        navigate('/panel/welcome');
+        try {
+            setIsLoading(true);
+
+            // Call the API to change password
+            await changePassword({
+                currentPassword: formData.currentPassword,
+                newPassword: formData.newPassword
+            });
+
+            // Success! Now logout to clear the temp token
+            await logout();
+
+            // Redirect to regular login with success message
+            navigate('/login', {
+                state: {
+                    message: '¡Contraseña cambiada exitosamente! Por favor, inicia sesión con tu nueva contraseña.'
+                }
+            });
+
+        } catch (err: any) {
+            // Handle API errors
+            const errorMessage = err.response?.data?.error ||
+                err.response?.data?.message ||
+                'Error al cambiar la contraseña. Verifica tu contraseña actual.';
+            setError(errorMessage);
+            console.error('Change password error:', err);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -58,6 +88,11 @@ export const Login = () => {
                     <p className="text-white/80 text-sm">
                         Por seguridad, debes cambiar tu contraseña predeterminada
                     </p>
+                    {user && (
+                        <p className="text-white/60 text-xs mt-2">
+                            Bienvenido,
+                        </p>
+                    )}
                 </div>
 
                 {/* Info Box */}
@@ -81,14 +116,15 @@ export const Login = () => {
                         <label className="block text-white/90 text-sm font-medium mb-2">
                             Contraseña Actual
                         </label>
-                        <input 
+                        <input
                             type="password"
                             name="currentPassword"
                             value={formData.currentPassword}
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-white/20 text-white border border-white/30 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none placeholder-white/70"
                             placeholder="Ingresa tu contraseña actual"
-                            required 
+                            required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -97,14 +133,15 @@ export const Login = () => {
                         <label className="block text-white/90 text-sm font-medium mb-2">
                             Nueva Contraseña
                         </label>
-                        <input 
+                        <input
                             type="password"
                             name="newPassword"
                             value={formData.newPassword}
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-white/20 text-white border border-white/30 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none placeholder-white/70"
                             placeholder="Mínimo 6 caracteres"
-                            required 
+                            required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -113,14 +150,15 @@ export const Login = () => {
                         <label className="block text-white/90 text-sm font-medium mb-2">
                             Confirmar Nueva Contraseña
                         </label>
-                        <input 
+                        <input
                             type="password"
                             name="confirmPassword"
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-white/20 text-white border border-white/30 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none placeholder-white/70"
                             placeholder="Repite la nueva contraseña"
-                            required 
+                            required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -133,10 +171,11 @@ export const Login = () => {
 
                     {/* Submit Button */}
                     <button
-                        className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-all shadow-lg"
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         type="submit"
+                        disabled={isLoading}
                     >
-                        Cambiar Contraseña
+                        {isLoading ? 'Cambiando contraseña...' : 'Cambiar Contraseña'}
                     </button>
                 </form>
 

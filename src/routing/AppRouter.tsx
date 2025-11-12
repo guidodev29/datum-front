@@ -6,6 +6,7 @@ import { Not_Found } from '../components/common/Not_Found';
 import { Panel } from '../components/main/Panel';
 import { Folders } from '../components/pages/Folders';
 import { NewFolder } from '../components/pages/NewFolder';
+import { EditFolder } from '../components/pages/EditFolder';
 import Calendar from '../components/pages/Calendar';
 import { MyCards } from '../components/pages/MyCards';
 import { Questions } from '../components/pages/Questions';
@@ -23,6 +24,7 @@ import { Settings } from '../components/admin/Settings';
 import { EditCard } from '../components/pages/EditCard';
 import { ReportCard } from '../components/pages/ReportCard';
 import { AdminLogin } from '../components/admin/AdminLogin';
+import { RegularLogin } from '../components/auth/RegularLogin';
 
 function AppRouter() {
   return (
@@ -32,8 +34,9 @@ function AppRouter() {
         <Route path="/" element={<LoginDef />} />
 
         <Route path="/login-default" element={<LoginDef />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/change-password" element={<Login />} />
         <Route path="/terms-conditions" element={<TermsConditions />} />
+        <Route path="/login" element={<RegularLogin />} />
 
         <Route path="/admin-login" element={<AdminLogin />} />
 
@@ -42,6 +45,8 @@ function AppRouter() {
           <Route path='welcome' element={<Welcome />} />
           <Route path='folders' element={<Folders />} />
           <Route path='new-folder' element={<NewFolder />} />
+          <Route path="folders/:folderId/edit" element={<EditFolder />} />
+
           <Route path='calendar' element={<Calendar />} />
 
           <Route path='my-cards' element={<MyCards />} />
